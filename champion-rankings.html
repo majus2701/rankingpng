@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Wheel of Origin — Champion Rankings</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   DESIGN TOKENS — from the World Atlas hero + character card
+   ============================================================ */
+:root{
+  --ink:#0B0A0C;
+  --gold:#E8C87A;
+  --gold-hi:#F5DFA2;
+  --gold-dim:#8A6D2F;
+  --gold-ghost:rgba(232,200,122,.14);
+  --parchment:#D8CFB8;
+  --muted:#8A8070;
+  --hairline:rgba(232,200,122,.22);
+
+  --display:'Cinzel','Trajan Pro',Georgia,'Times New Roman',serif;
+  --body:'EB Garamond',Georgia,'Times New Roman',serif;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+
+/* Placement metals — driven by the COMPUTED place, not the slot index */
+.rank-1{ --metal:#E8C87A; --metal-hi:#FFF0C4; --metal-dim:#7A5E24; --metal-soft:rgba(232,200,122,.10); }
+.rank-2{ --metal:#CFD6DC; --metal-hi:#FFFFFF; --metal-dim:#6C757E; --metal-soft:rgba(207,214,220,.08); }
+.rank-3{ --metal:#C98A55; --metal-hi:#F0BC8C; --metal-dim:#6F4527; --metal-soft:rgba(201,138,85,.08); }
+.rank-4{ --metal:#79808B; --metal-hi:#A9B1BC; --metal-dim:#33383F; --metal-soft:rgba(121,128,139,.06); }
+
+/* METRIC PALETTE — card identity, desaturated for the gold/black world */
+.m-total{ /* no --stat → the value inherits the placement metal */ }
+.m-str { --stat:#D2564A; --stat-hi:#F08A7E; --stat-glow:rgba(210,86,74,.30); }
+.m-spd { --stat:#D9B141; --stat-hi:#F5D97A; --stat-glow:rgba(217,177,65,.30); }
+.m-iq  { --stat:#5B95D8; --stat-hi:#8FBDF0; --stat-glow:rgba(91,149,216,.30); }
+.m-dur { --stat:#4CA97A; --stat-hi:#7FD3A5; --stat-glow:rgba(76,169,122,.30); }
+.m-def { --stat:#A2AAB3; --stat-hi:#D2D8DE; --stat-glow:rgba(162,170,179,.28); }
+.m-pm  { --stat:#BE63BC; --stat-hi:#E093DE; --stat-glow:rgba(190,99,188,.30); }
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:radial-gradient(1100px 700px at 50% -10%, #1A1620 0%, transparent 60%), var(--ink);
+  color:var(--parchment); font-family:var(--body); -webkit-font-smoothing:antialiased;
+}
+
+/* ============================================================ APP BAR */
+.app-bar{
+  position:sticky; top:0; z-index:20;
+  display:flex; align-items:center; gap:28px; padding:14px 26px;
+  background:linear-gradient(180deg,#0E0C11 0%, rgba(11,10,12,.92) 100%);
+  border-bottom:1px solid var(--hairline);
+}
+.brand{line-height:1.05}
+.brand b{ display:block; font-family:var(--display); font-weight:600; font-size:17px; letter-spacing:.16em; color:var(--gold); }
+.brand span{ display:block; font-family:var(--display); font-size:9px; letter-spacing:.34em; color:var(--gold-dim); margin-top:3px; }
+.app-bar .spacer{flex:1}
+
+.btn{
+  font-family:var(--display); font-size:11px; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  padding:10px 18px; cursor:pointer; color:var(--gold); background:transparent; border:1px solid var(--hairline);
+  transition:background .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease);
+}
+.btn:hover{ background:var(--gold-ghost); border-color:var(--gold); }
+.btn:focus-visible{ outline:2px solid var(--gold-hi); outline-offset:2px; }
+.btn.primary{ color:#15110A; background:linear-gradient(180deg,var(--gold-hi),var(--gold)); border-color:var(--gold-hi); }
+.btn.primary:hover{ filter:brightness(1.08); }
+.btn.ghost{ color:var(--muted); border-color:rgba(138,128,112,.28); }
+.btn.ghost:hover{ color:var(--gold); }
+.btn[disabled]{ opacity:.45; cursor:not-allowed; }
+
+/* ============================================================ WORKSPACE */
+.workspace{ display:grid; grid-template-columns:380px 1fr; align-items:start; min-height:calc(100vh - 60px); }
+
+/* ---------- EDITOR (never exported) ---------- */
+.editor{
+  position:sticky; top:60px; height:calc(100vh - 60px); overflow-y:auto;
+  padding:22px 20px 60px;
+  background:linear-gradient(180deg,#100E13,#0B0A0C);
+  border-right:1px solid var(--hairline);
+}
+.editor h2{ font-family:var(--display); font-size:12px; font-weight:600; letter-spacing:.28em; text-transform:uppercase; color:var(--gold); }
+.editor h2:not(:first-child){ margin-top:26px }
+.editor .hint{ font-size:14px; color:var(--muted); margin:8px 0 18px; }
+
+.ctrl{ margin-bottom:16px }
+.ctrl > label{ display:block; font-family:var(--display); font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.sel{
+  width:100%; padding:9px 10px; cursor:pointer;
+  background:#0A090C; border:1px solid rgba(232,200,122,.2);
+  color:var(--gold-hi); font-family:var(--display); font-size:12px; letter-spacing:.1em; appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--gold-dim) 50%),linear-gradient(135deg,var(--gold-dim) 50%,transparent 50%);
+  background-position:calc(100% - 16px) calc(1em + 1px), calc(100% - 11px) calc(1em + 1px);
+  background-size:5px 5px, 5px 5px; background-repeat:no-repeat;
+}
+.sel:focus{ outline:none; border-color:var(--gold) }
+.sel option{ background:#0E0C11 }
+
+.seg{ display:grid; border:1px solid rgba(232,200,122,.2); }
+.seg.four{ grid-template-columns:repeat(4,1fr) }
+.seg.two{ grid-template-columns:repeat(2,1fr) }
+.seg button{
+  font-family:var(--display); font-size:9px; letter-spacing:.12em; text-transform:uppercase;
+  padding:8px 2px; cursor:pointer; color:var(--muted); background:#0A090C;
+  border:none; border-right:1px solid rgba(232,200,122,.14);
+}
+.seg button:last-child{ border-right:none }
+.seg button:hover{ color:var(--gold) }
+.seg button[aria-pressed="true"]{ background:var(--gold-ghost); color:var(--gold-hi) }
+.seg button:focus-visible{ outline:2px solid var(--gold-hi); outline-offset:-2px }
+.note{ font-size:12px; color:var(--muted); margin-top:6px; line-height:1.5 }
+
+/* ---------- Editor slot = one PLACEMENT, holding up to 3 cards ---------- */
+.slot{
+  border:1px solid rgba(232,200,122,.16);
+  background:linear-gradient(180deg,rgba(255,255,255,.02),transparent);
+  padding:12px; margin-bottom:12px; position:relative;
+}
+.slot::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:2px; background:linear-gradient(180deg,var(--metal),var(--metal-dim)); }
+.slot-head{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.slot-num{ font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:.1em; color:var(--metal); min-width:30px; }
+.slot-title{ font-family:var(--display); font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); }
+.shared-tag{
+  font-family:var(--display); font-size:8px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--metal); border:1px solid var(--metal-dim); padding:2px 6px; margin-left:auto;
+}
+
+.thumbs{ display:flex; gap:6px; margin-bottom:10px; }
+.thumb{
+  width:52px; aspect-ratio:9/16; position:relative; flex:0 0 auto;
+  border:1px solid rgba(232,200,122,.18);
+  background:#0E0C11 center/contain no-repeat;
+  display:flex; align-items:center; justify-content:center;
+  color:#4A4438; font-size:8px; letter-spacing:.08em; text-align:center;
+  font-family:var(--display); text-transform:uppercase; cursor:pointer;
+}
+.thumb:hover{ border-color:var(--gold) }
+.thumb .rm{
+  position:absolute; top:-1px; right:-1px; width:16px; height:16px; line-height:14px;
+  background:#0B0A0C; border:1px solid rgba(232,200,122,.3); color:var(--muted);
+  font-size:11px; cursor:pointer; padding:0;
+}
+.thumb .rm:hover{ color:#E8756A; border-color:#E8756A }
+.thumb.add{ border-style:dashed; color:var(--gold-dim); font-size:16px }
+.thumb.add:hover{ color:var(--gold) }
+
+.field label{ display:block; font-family:var(--display); font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+.field input{
+  width:100%; padding:8px 10px; background:#0A090C; border:1px solid rgba(232,200,122,.2);
+  color:var(--gold-hi); font-family:var(--display); font-size:14px; letter-spacing:.06em;
+}
+.field input:focus{ outline:none; border-color:var(--gold); background:#0E0C11; }
+
+.slot-actions{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.mini{
+  font-family:var(--display); font-size:9px; letter-spacing:.14em; text-transform:uppercase;
+  padding:6px 9px; cursor:pointer; color:var(--muted); background:transparent; border:1px solid rgba(138,128,112,.25);
+}
+.mini:hover{ color:var(--gold); border-color:var(--gold); }
+.mini[disabled]{ opacity:.3; cursor:not-allowed; }
+.mini:focus-visible{ outline:2px solid var(--gold-hi); outline-offset:1px; }
+
+.editor-foot{ margin-top:20px; padding-top:16px; border-top:1px solid rgba(232,200,122,.14); }
+.status{ font-size:13px; color:var(--muted); margin-top:12px; min-height:18px; }
+
+/* ---------- STAGE ---------- */
+.stage{ padding:30px; display:flex; justify-content:center; background:radial-gradient(900px 600px at 50% 0%, rgba(232,200,122,.045), transparent 70%); }
+#scaler{ transform-origin:top center; }
+
+/* ============================================================
+   THE BOARD — the only exported element.
+   Width and every card size are computed in JS and set inline,
+   so the card is never squeezed to make the board fit.
+   ============================================================ */
+.board{
+  --ch:380px;
+  --cw:calc(var(--ch) * 0.5625);
+  height:auto; position:relative; overflow:hidden;
+  padding:36px 40px 26px;
+  display:flex; flex-direction:column;
+  background:
+    radial-gradient(520px 340px at 50% 10%, rgba(232,200,122,.10), transparent 70%),
+    radial-gradient(760px 260px at 50% 104%, rgba(180,190,210,.07), transparent 70%),
+    radial-gradient(420px 220px at 6% 70%, rgba(200,180,140,.045), transparent 75%),
+    radial-gradient(420px 220px at 97% 36%, rgba(160,175,200,.04), transparent 75%),
+    repeating-linear-gradient(96deg, rgba(255,255,255,.011) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(-4deg, rgba(0,0,0,.16) 0 3px, transparent 3px 9px),
+    linear-gradient(170deg,#141119 0%, #0B0A0C 45%, #0D0B10 100%);
+  border:1px solid rgba(232,200,122,.30);
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 30px 90px rgba(0,0,0,.7);
+}
+
+.board-frame{ position:absolute; inset:12px; border:1px solid rgba(232,200,122,.16); pointer-events:none; }
+.board-frame i{ position:absolute; width:6px; height:6px; background:var(--gold); transform:rotate(45deg); opacity:.55; }
+.board-frame i:nth-child(1){ left:-3px; top:-3px }
+.board-frame i:nth-child(2){ right:-3px; top:-3px }
+.board-frame i:nth-child(3){ left:-3px; bottom:-3px }
+.board-frame i:nth-child(4){ right:-3px; bottom:-3px }
+
+.runes{
+  position:absolute; top:76px; bottom:60px; width:22px;
+  display:flex; flex-direction:column; justify-content:space-around; align-items:center;
+  font-size:15px; color:rgba(232,200,122,.10); pointer-events:none; user-select:none;
+}
+.runes.left{ left:20px } .runes.right{ right:20px }
+
+/* ---------- Board header ---------- */
+.board-head{ text-align:center; position:relative; z-index:2; flex:0 0 auto; }
+.eyebrow{ font-family:var(--display); font-size:10px; font-weight:500; letter-spacing:.42em; text-transform:uppercase; color:var(--gold-dim); }
+.eyebrow::before{ content:"✦"; margin-right:14px; opacity:.7 }
+.eyebrow::after{ content:"✦"; margin-left:14px; opacity:.7 }
+.board-title{
+  font-family:var(--display); font-weight:700; font-size:54px; line-height:1.05; letter-spacing:.045em;
+  color:var(--gold); margin-top:11px;
+  text-shadow:0 0 34px rgba(232,200,122,.30), 0 2px 0 rgba(0,0,0,.6);
+}
+.rule{ height:1px; width:400px; margin:14px auto 0; background:linear-gradient(90deg,transparent,var(--gold-dim),var(--gold),var(--gold-dim),transparent); }
+.board-sub{ font-family:var(--body); font-style:italic; font-size:20px; color:var(--parchment); opacity:.82; margin-top:12px; }
+
+/* ============================================================
+   ROW BASICS — one row = one PLACEMENT (1–3 cards, one value).
+   --rc is set inline per row by JS. Cards NEVER shrink and are
+   NEVER rotated: the character card brings its own straight frame.
+   ============================================================ */
+.rows{ position:relative; z-index:2; flex:1 1 auto; margin-top:20px; }
+.row{
+  --cwx:calc(var(--rc) * .5625);
+  display:grid; align-items:center; gap:22px;
+  padding:9px 20px 9px 12px; position:relative;
+  border:1px solid var(--metal-dim);
+  background:
+    linear-gradient(90deg, var(--metal-soft), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.022), rgba(0,0,0,.25));
+}
+.row::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,var(--metal-dim),var(--metal),var(--metal-dim)); }
+.row::after{ content:""; position:absolute; inset:4px; border:1px solid rgba(255,255,255,.045); pointer-events:none; }
+.row.rank-1{ box-shadow:inset 0 0 30px rgba(232,200,122,.14), 0 0 24px rgba(232,200,122,.10); }
+
+/* ---------- A: shared cards stand side by side, at full size ---------- */
+.cards{ display:flex; flex-direction:row; gap:8px; align-items:center; justify-content:center; }
+.card-slot{
+  width:var(--cwx); height:var(--rc); flex:0 0 auto;
+  display:flex; align-items:center; justify-content:center;
+  padding:4px; position:relative; overflow:hidden;
+  border:1px solid var(--metal-dim);
+  background:linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,.3));
+  box-shadow:0 0 22px var(--metal-soft);
+}
+.card-slot img{ max-width:100%; max-height:100%; width:100%; height:100%; object-fit:contain; display:block; }
+.card-slot.empty::after{
+  content:"AWAITING CARD"; writing-mode:vertical-rl;
+  font-family:var(--display); font-size:8px; letter-spacing:.18em; color:rgba(232,200,122,.22);
+}
+
+/* ---------- B: bracketed rows — cards stack, one bracket holds them ---------- */
+.row.bracketed{ display:flex; align-items:center; gap:20px; }
+.row.bracketed .cards{ flex-direction:column; gap:10px; }
+.row.bracketed .stats{ flex:1 1 auto }
+.row.bracketed .sigil{ flex:0 0 62px }
+.bracket{
+  flex:0 0 14px; align-self:stretch; margin:6px 0; position:relative;
+  border:1px solid var(--metal-dim); border-right:none;
+}
+.bracket::before{ /* the clasp at the centre */
+  content:""; position:absolute; left:-4px; top:50%; width:7px; height:7px;
+  background:var(--metal); transform:translateY(-50%) rotate(45deg);
+  box-shadow:0 0 8px var(--metal-soft);
+}
+
+/* Placement sigil */
+.sigil{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+.sigil .mark{
+  width:44px; height:44px; display:flex; align-items:center; justify-content:center;
+  transform:rotate(45deg); border:1px solid var(--metal);
+  background:linear-gradient(135deg, var(--metal-dim), rgba(0,0,0,.55));
+  box-shadow:0 0 14px var(--metal-soft);
+}
+.sigil .mark span{ transform:rotate(-45deg); font-family:var(--display); font-weight:700; font-size:15px; color:var(--metal-hi); text-shadow:0 1px 2px rgba(0,0,0,.9); }
+.sigil .place{ font-family:var(--display); font-size:8px; letter-spacing:.2em; text-transform:uppercase; color:var(--metal); opacity:.85; text-align:center; line-height:1.6 }
+.sigil .place em{ display:block; font-style:normal; opacity:.7; font-size:7px }
+
+/* Stat block */
+.stats .label{ font-family:var(--display); font-size:9px; letter-spacing:.3em; text-transform:uppercase; color:var(--muted); }
+.stats .value{
+  font-family:var(--display); font-weight:700; letter-spacing:.03em;
+  font-size:52px; line-height:1.1; margin-top:2px;
+  color:var(--stat-hi, var(--metal-hi));
+  text-shadow:0 0 22px var(--stat-glow, var(--metal-soft)), 0 2px 0 rgba(0,0,0,.75);
+}
+.stats .sep{ height:1px; width:130px; margin-top:10px; background:linear-gradient(90deg, var(--stat, var(--metal)), transparent); }
+
+/* ============================================================
+   ROW FLOW A — HORIZONTAL (sigil | cards | stat)
+   ============================================================ */
+.board[data-layout="vertical"] .row:not(.bracketed),
+.board[data-layout="ladder"] .row:not(.bracketed),
+.board[data-layout="throne"] .row:not(.slot-1):not(.bracketed){
+  height:calc(var(--rc) + 22px);
+  grid-template-columns:62px calc(var(--cwx) * var(--n) + (var(--n) - 1) * 8px + 12px) 1fr;
+}
+.board[data-layout="vertical"] .cards,
+.board[data-layout="ladder"] .cards,
+.board[data-layout="throne"] .row:not(.slot-1) .cards{ justify-content:flex-start }
+
+/* ============================================================
+   ROW FLOW B — STACKED (sigil / cards / stat, centred)
+   ============================================================ */
+.board[data-layout="podium"] .row,
+.board[data-layout="hall"] .row,
+.board[data-layout="throne"] .row.slot-1{
+  grid-template-columns:1fr; grid-template-rows:auto 1fr auto;
+  justify-items:center; text-align:center; gap:9px; padding:12px 10px 14px;
+}
+.board[data-layout="podium"] .row::before,
+.board[data-layout="hall"] .row::before,
+.board[data-layout="throne"] .row.slot-1::before{
+  left:0; right:0; top:auto; bottom:0; width:auto; height:3px;
+  background:linear-gradient(90deg,var(--metal-dim),var(--metal),var(--metal-dim));
+}
+.board[data-layout="podium"] .sigil,
+.board[data-layout="hall"] .sigil,
+.board[data-layout="throne"] .row.slot-1 .sigil{ flex-direction:row; gap:9px; align-items:center; }
+.board[data-layout="podium"] .stats .sep,
+.board[data-layout="hall"] .stats .sep,
+.board[data-layout="throne"] .row.slot-1 .stats .sep{
+  margin:8px auto 0; width:90px; background:linear-gradient(90deg,transparent,var(--stat, var(--metal)),transparent);
+}
+.board[data-layout="podium"] .stats .value,
+.board[data-layout="hall"] .stats .value{ font-size:32px }
+
+/* ============================================================ LAYOUTS */
+.board[data-layout="vertical"] .rows{ display:flex; flex-direction:column; gap:11px; }
+
+.board[data-layout="podium"] .rows{ display:grid; align-items:end; gap:14px; }
+.board[data-layout="podium"] .row.slot-1 .stats .value{ font-size:42px }
+.board[data-layout="podium"] .sigil .mark{ width:32px; height:32px }
+.board[data-layout="podium"] .sigil .mark span{ font-size:12px }
+.board[data-layout="podium"] .row.slot-1 .sigil .mark{ width:42px; height:42px }
+.board[data-layout="podium"] .row.slot-1 .sigil .mark span{ font-size:15px }
+
+.board[data-layout="hall"] .rows{ display:grid; align-items:end; gap:12px; }
+.board[data-layout="hall"] .sigil .mark{ width:30px; height:30px }
+.board[data-layout="hall"] .sigil .mark span{ font-size:11px }
+.board[data-layout="hall"] .stats .value{ font-size:28px }
+.board[data-layout="hall"] .row.slot-1 .stats .value{ font-size:34px }
+
+.board[data-layout="throne"] .rows{ display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:start; }
+.board[data-layout="throne"] .row.slot-1{ grid-column:1; align-self:stretch }
+.board[data-layout="throne"] .row.slot-1 .stats .value{ font-size:44px }
+.board[data-layout="throne"] .row:not(.slot-1){ grid-column:2 }
+.board[data-layout="throne"] .row:not(.slot-1) .stats .value{ font-size:34px }
+.board[data-layout="throne"] .row:not(.slot-1) .sigil .mark{ width:36px; height:36px }
+.board[data-layout="throne"] .row:not(.slot-1) .sigil .mark span{ font-size:13px }
+
+.board[data-layout="ladder"] .rows{ display:flex; flex-direction:column; gap:10px; }
+.board[data-layout="ladder"] .row.slot-1 .stats .value{ font-size:56px }
+
+/* ---------- Board footer ---------- */
+.board-foot{
+  position:relative; z-index:2; flex:0 0 auto;
+  margin-top:16px; padding-top:12px;
+  display:flex; align-items:flex-end; justify-content:space-between;
+  border-top:1px solid rgba(232,200,122,.14);
+}
+.board-foot .seal{ font-family:var(--display); font-size:9px; letter-spacing:.3em; text-transform:uppercase; color:var(--gold-dim); }
+.board-foot .updated{ text-align:right; line-height:1.5 }
+.board-foot .updated b{ display:block; font-family:var(--display); font-size:8px; font-weight:500; letter-spacing:.28em; text-transform:uppercase; color:var(--muted); }
+.board-foot .updated span{ font-family:var(--body); font-style:italic; font-size:16px; color:var(--parchment); opacity:.8; }
+
+@media (max-width:1100px){
+  .workspace{ grid-template-columns:1fr }
+  .editor{ position:static; height:auto; border-right:none; border-bottom:1px solid var(--hairline) }
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+</style>
+</head>
+<body>
+
+<header class="app-bar">
+  <div class="brand"><b>⊕ Wheel of Origin</b><span>Champion Rankings</span></div>
+  <div class="spacer"></div>
+  <button class="btn ghost" id="btn-reset">Clear all</button>
+  <button class="btn" id="btn-layout">Swap layout</button>
+  <button class="btn primary" id="btn-export">Export PNG</button>
+</header>
+
+<main class="workspace">
+  <aside class="editor">
+    <h2>Board</h2>
+
+    <div class="ctrl">
+      <label for="sel-layout">Layout</label>
+      <select class="sel" id="sel-layout"></select>
+    </div>
+
+    <div class="ctrl">
+      <label for="sel-metric">Displayed stat</label>
+      <select class="sel" id="sel-metric"></select>
+    </div>
+
+    <div class="ctrl">
+      <label>Card size</label>
+      <div class="seg four" id="size-seg">
+        <button data-size="300">Small</button>
+        <button data-size="380">Medium</button>
+        <button data-size="470">Large</button>
+        <button data-size="580">Huge</button>
+      </div>
+      <p class="note" id="size-note"></p>
+    </div>
+
+    <div class="ctrl">
+      <label>Tie numbering</label>
+      <div class="seg two" id="tie-seg">
+        <button data-tie="tournament">Tournament</button>
+        <button data-tie="dense">Dense</button>
+      </div>
+      <p class="note" id="tie-note"></p>
+    </div>
+
+    <div class="ctrl">
+      <label>Shared places</label>
+      <div class="seg two" id="shared-seg">
+        <button data-shared="side">Side by side</button>
+        <button data-shared="bracket">Bracketed</button>
+      </div>
+      <p class="note" id="shared-note"></p>
+    </div>
+
+    <h2>Placements</h2>
+    <p class="hint">One row = one entry. The number follows the <em>value</em>: two equal values get the same place automatically. Add up to three cards to a row only if you need more than five champions on the board.</p>
+
+    <div id="slots"></div>
+
+    <button class="btn" id="btn-add-slot" style="width:100%">+ Add cell</button>
+    <p class="note" id="count-note"></p>
+
+    <div class="editor-foot">
+      <div class="field">
+        <label for="updated">Last updated</label>
+        <input id="updated" type="text" placeholder="17 July 2026" />
+      </div>
+      <p class="status" id="status">Values and order are saved locally. Images are not stored and must be re-uploaded after a reload.</p>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div id="scaler">
+      <div class="board m-total" id="board" data-layout="vertical">
+        <div class="board-frame"><i></i><i></i><i></i><i></i></div>
+        <div class="runes left">ᚠ ᚱ ᛟ ᛊ ᚦ ᛉ ᛇ</div>
+        <div class="runes right">ᛃ ᛗ ᛚ ᛞ ᚹ ᚷ ᛏ</div>
+
+        <div class="board-head">
+          <div class="eyebrow" id="eyebrow">Season I · The Grand Ordeal</div>
+          <h1 class="board-title">Champion Rankings</h1>
+          <div class="rule"></div>
+          <p class="board-sub">The strongest champions chosen by the Wheel.</p>
+        </div>
+
+        <div class="rows" id="rows"></div>
+
+        <div class="board-foot">
+          <div class="seal">⊕ Crownspire · World Atlas</div>
+          <div class="updated"><b>Last updated</b><span id="updated-out">—</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const STORAGE_KEY = 'woo.champion-rankings.v4';
+const MIN_SLOTS   = 1;
+const MAX_SLOTS   = 5;
+const MAX_CARDS   = 3;
+const EXPORT_SCALE = 2;
+const RATIO = 0.5625;            // 9:16 character cards
+const GAP = 8;                   // gap between cards sharing a place
+
+/* Card height multiplier per slot, per layout. JS owns these numbers and
+   writes them into --rc, so the CSS and the width maths can never drift. */
+const RC = {
+  vertical:[1, 1, 1, 1, 1],
+  podium  :[1.63, 1.26, 1.26, .89, .89],
+  hall    :[1, .92, .92, .92, .92],
+  throne  :[1.7, .5, .5, .5, .5],
+  ladder  :[1.25, 1.10, 1, .90, .80]
+};
+/* Layouts whose rows can use the bracket treatment */
+const BRACKETABLE = { vertical:true, ladder:true, throne:'except-champion' };
+
+const METRICS = [
+  { id:'total', label:'Total Stats',   cls:'m-total', eyebrow:'Season I · The Grand Ordeal' },
+  { id:'str',   label:'Strength',      cls:'m-str',   eyebrow:'Season I · Ranked by Strength' },
+  { id:'spd',   label:'Speed',         cls:'m-spd',   eyebrow:'Season I · Ranked by Speed' },
+  { id:'iq',    label:'IQ',            cls:'m-iq',    eyebrow:'Season I · Ranked by Intellect' },
+  { id:'dur',   label:'Durability',    cls:'m-dur',   eyebrow:'Season I · Ranked by Durability' },
+  { id:'def',   label:'Defense',       cls:'m-def',   eyebrow:'Season I · Ranked by Defense' },
+  { id:'pm',    label:'Power Mastery', cls:'m-pm',    eyebrow:'Season I · Ranked by Power Mastery' }
+];
+const LAYOUTS = [
+  { id:'vertical', name:'Vertical Ranking'  },
+  { id:'podium',   name:'Podium'            },
+  { id:'hall',     name:'Hall of Champions' },
+  { id:'throne',   name:'Throne'            },
+  { id:'ladder',   name:'Ladder'            }
+];
+const ORDINALS = ['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth',
+                  'Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
+
+function roman(n){
+  const map = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
+  let out = '';
+  for(const [v,s] of map){ while(n >= v){ out += s; n -= v; } }
+  return out;
+}
+
+/* ============================================================ STATE */
+const blankValues = () => Object.fromEntries(METRICS.map(m => [m.id, '']));
+const blankSlot   = () => ({ cards:[], values:blankValues() });
+
+const state = {
+  layout:'vertical',
+  metric:'total',
+  cardSize:380,
+  sharedStyle:'side',          // 'side' = A · 'bracket' = B
+  tieMode:'tournament',        // 'tournament' = 1,2,2,4,5 · 'dense' = 1,2,2,3,4
+  updated:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}),
+  slots:Array.from({length:5}, blankSlot)
+};
+
+const $ = s => document.querySelector(s);
+const rowsEl = $('#rows'), slotsEl = $('#slots'), boardEl = $('#board');
+const metricOf = id => METRICS.find(m => m.id === id);
+
+/* ------------------------------------------------------------
+   RANKING — the number counts VALUES, not cards.
+   Equal value = equal place. Two ways to continue afterwards:
+
+     tournament : 1, 2, 2, 4, 5   (sport standard — two silvers, no bronze)
+     dense      : 1, 2, 2, 3, 4   (no gap in the numbering)
+
+   A slot holding several cards counts as several competitors, so
+   both kinds of tie — same cell, or same value — resolve identically.
+   ------------------------------------------------------------ */
+function normValue(v){
+  const t = (v || '').trim();
+  if(!t) return null;                                  // blank never ties
+  const n = parseFloat(t.replace(',', '.'));
+  return isNaN(n) ? t.toLowerCase() : n;               // numeric if possible
+}
+
+function placements(){
+  const nv = state.slots.map(s => normValue(s.values[state.metric]));
+  const out = [];
+  let above = 0;        // competitors ranked above this slot (tournament)
+  let dense = 0;        // distinct values seen so far (dense)
+
+  state.slots.forEach((slot,i)=>{
+    const tie = i > 0 && nv[i] !== null && nv[i] === nv[i-1];
+    let place;
+    if(tie){
+      place = out[i-1].place;                          // same value → same number
+    }else if(state.tieMode === 'dense'){
+      place = ++dense;
+    }else{
+      place = above + 1;
+    }
+    out.push({ place, shared: slot.cards.length > 1, tied:false });
+    above += Math.max(1, slot.cards.length);           // every card is a competitor
+  });
+
+  /* flag both halves of a tie so the sigil can say so */
+  for(let i = 0; i < out.length - 1; i++){
+    if(out[i].place === out[i+1].place){ out[i].tied = true; out[i+1].tied = true; }
+  }
+  return out;
+}
+const metalClass = place => 'rank-' + Math.min(place, 4);
+
+/* Does this row stack its shared cards under one bracket? */
+function isBracketed(i){
+  if(state.sharedStyle !== 'bracket') return false;
+  if(state.slots[i].cards.length < 2)  return false;
+  const rule = BRACKETABLE[state.layout];
+  if(!rule) return false;
+  if(rule === 'except-champion' && i === 0) return false;
+  return true;
+}
+
+/* ------------------------------------------------------------
+   PODIUM ARRANGEMENT — [column, row] per cell, by how many cells exist.
+   Three cells is the classic podium; four hangs the last one centre-below.
+   ------------------------------------------------------------ */
+function podiumPos(n){
+  if(n === 1) return [[2,1]];
+  if(n === 2) return [[2,1],[1,1]];
+  if(n === 3) return [[2,1],[1,1],[3,1]];
+  if(n === 4) return [[2,1],[1,1],[3,1],[2,2]];
+  return [[2,1],[1,1],[3,1],[1,2],[3,2]];
+}
+
+/* ------------------------------------------------------------
+   GEOMETRY — the board is sized around the cards, never the reverse.
+   Everything scales with the number of cells, so a removed cell
+   really disappears instead of leaving a hole.
+   ------------------------------------------------------------ */
+function geometry(){
+  const N  = state.slots.length;
+  const ch = state.cardSize;
+  const rc = RC[state.layout].slice(0, N).map(m => ch * m);
+  const cw = rc.map(h => h * RATIO);
+  const across = state.slots.map((s,i) => isBracketed(i) ? 1 : Math.max(1, s.cards.length));
+  const cardBand = i => across[i] * cw[i] + (across[i] - 1) * GAP + 12;
+  const PAD = 80;
+
+  let width, tracks = null, pos = null;
+
+  if(state.layout === 'vertical' || state.layout === 'ladder'){
+    const base = state.layout === 'ladder' ? 1060 : 900;
+    const widest = Math.max(...state.slots.map((_,i)=> cardBand(i)));
+    width = base + Math.max(0, widest - (cw[0] + 12));
+  }
+  else if(state.layout === 'hall'){
+    const cols = state.slots.map((_,i)=> Math.max(170, cardBand(i) + 20));
+    width = cols.reduce((a,b)=>a+b,0) + (N-1)*12 + PAD;
+    tracks = cols.map(c => c + 'px').join(' ');
+  }
+  else if(state.layout === 'podium'){
+    const raw  = podiumPos(N);
+    const cell = i => Math.max(200, cardBand(i) + 20);
+    /* only the columns that are actually used become tracks */
+    const usedCols = [...new Set(raw.map(p => p[0]))].sort();
+    const colW = usedCols.map(c =>
+      Math.max(...raw.map((p,i) => p[0] === c ? cell(i) : 0)));
+    width = colW.reduce((a,b)=>a+b,0) + (usedCols.length-1)*14 + PAD;
+    tracks = colW.map(w => w + 'px').join(' ');
+    pos = raw.map(p => ({ col: usedCols.indexOf(p[0]) + 1, row: p[1] }));
+  }
+  else { /* throne */
+    const champ = Math.max(250, cardBand(0) + 20);
+    const rest  = state.slots.map((_,i)=>i).filter(i => i > 0);
+    if(rest.length === 0){ width = champ + PAD; tracks = 'auto'; }
+    else{
+      const list  = Math.max(...rest.map(i => cardBand(i)));
+      const right = 62 + 22 + list + 22 + 210 + 32;
+      width = champ + 18 + right + PAD;
+    }
+  }
+  return { rc, width:Math.round(width), tracks, across, pos, N };
+}
+
+/* ---------- Persistence ---------- */
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    layout:state.layout, metric:state.metric, cardSize:state.cardSize,
+    sharedStyle:state.sharedStyle, tieMode:state.tieMode, updated:state.updated,
+    values:state.slots.map(s => s.values)
+  }));
+}
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if(!d) return;
+    if(d.layout && LAYOUTS.some(l=>l.id===d.layout)) state.layout = d.layout;
+    if(d.metric && metricOf(d.metric)) state.metric = d.metric;
+    if(d.cardSize) state.cardSize = d.cardSize;
+    if(d.sharedStyle) state.sharedStyle = d.sharedStyle;
+    if(d.tieMode) state.tieMode = d.tieMode;
+    if(d.updated) state.updated = d.updated;
+    if(Array.isArray(d.values) && d.values.length){
+      const n = Math.min(MAX_SLOTS, Math.max(MIN_SLOTS, d.values.length));
+      state.slots = Array.from({length:n}, blankSlot);
+      d.values.slice(0,n).forEach((v,i)=>{ state.slots[i].values = Object.assign(blankValues(), v || {}); });
+    }
+  }catch(e){ /* corrupt entry — start fresh */ }
+}
+
+/* ============================================================ EDITOR */
+function buildControls(){
+  $('#sel-layout').innerHTML = LAYOUTS.map(l=>`<option value="${l.id}">${l.name}</option>`).join('');
+  $('#sel-metric').innerHTML = METRICS.map(m=>`<option value="${m.id}">${m.label}</option>`).join('');
+}
+
+/* The slot head shows the COMPUTED placement, so it must refresh
+   whenever a value changes — but without rebuilding the input. */
+function slotHeadHTML(i, p){
+  const cards = state.slots[i].cards.length;
+  return `
+    <div class="slot-num">${roman(p.place)}</div>
+    <div class="slot-title">${ORDINALS[p.place-1]} place</div>
+    ${p.shared ? `<div class="shared-tag">Shared ×${cards}</div>`
+      : p.tied ? `<div class="shared-tag">Tied</div>` : ''}`;
+}
+
+/* Refresh only the heads — used on every keystroke */
+function syncPlacementLabels(){
+  const p = placements();
+  state.slots.forEach((_,i)=>{
+    const el = slotsEl.querySelector(`.slot[data-i="${i}"]`);
+    if(!el) return;
+    el.className = 'slot ' + metalClass(p[i].place);
+    el.querySelector('.slot-head').innerHTML = slotHeadHTML(i, p[i]);
+  });
+}
+
+function buildEditor(){
+  const p = placements();
+  const m = metricOf(state.metric);
+  slotsEl.innerHTML = state.slots.map((slot,i)=>{
+    const thumbs = slot.cards.map((src,c)=>`
+      <div class="thumb filled" data-act="replace" data-c="${c}" style="background-image:url(${src})" title="Replace this card">
+        <button class="rm" data-act="remove" data-c="${c}" title="Remove card">×</button>
+      </div>`).join('')
+      + (slot.cards.length < MAX_CARDS ? `<div class="thumb add" data-act="add" title="Add a card to this placement">+</div>` : '');
+
+    return `
+    <div class="slot ${metalClass(p[i].place)}" data-i="${i}">
+      <div class="slot-head">${slotHeadHTML(i, p[i])}</div>
+      <div class="thumbs">${thumbs}</div>
+      <div class="field">
+        <label for="val-${i}">${m.label}</label>
+        <input id="val-${i}" type="text" inputmode="numeric" placeholder="000" data-act="value" value="${slot.values[state.metric]}" />
+      </div>
+      <div class="slot-actions">
+        <button class="mini" data-act="up" ${i===0?'disabled':''}>Move up</button>
+        <button class="mini" data-act="down" ${i===state.slots.length-1?'disabled':''}>Move down</button>
+        <button class="mini" data-act="clear">Clear</button>
+        <button class="mini" data-act="removeSlot" ${state.slots.length<=MIN_SLOTS?'disabled':''}>Remove cell</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  /* Cells vs champions: a cell with two cards holds two champions */
+  const cells = state.slots.length;
+  const champs = state.slots.reduce((a,s)=> a + Math.max(1, s.cards.length), 0);
+  $('#count-note').textContent = `${cells} ${cells===1?'cell':'cells'} · ${champs} champions`;
+  $('#count-note').style.color = champs > 5 ? '#D2564A' : '';
+  $('#btn-add-slot').disabled = state.slots.length >= MAX_SLOTS;
+
+  $('#updated').value    = state.updated;
+  $('#sel-layout').value = state.layout;
+  $('#sel-metric').value = state.metric;
+  document.querySelectorAll('#size-seg button').forEach(b =>
+    b.setAttribute('aria-pressed', String(+b.dataset.size === state.cardSize)));
+  document.querySelectorAll('#shared-seg button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.shared === state.sharedStyle)));
+  document.querySelectorAll('#tie-seg button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.tie === state.tieMode)));
+
+  $('#tie-note').textContent = state.tieMode === 'tournament'
+    ? 'Sport standard: two seconds mean no third — 1, 2, 2, 4, 5.'
+    : 'No gaps in the numbering — 1, 2, 2, 3, 4.';
+  $('#shared-note').textContent = state.sharedStyle === 'side'
+    ? 'Two cards in one cell stand side by side at full size; the board widens to fit them.'
+    : 'Two cards in one cell stack under one bracket. Vertical, Ladder and Throne only.';
+}
+
+/* ============================================================ BOARD RENDER */
+function renderBoard(){
+  const m = metricOf(state.metric);
+  const p = placements();
+  const g = geometry();
+
+  boardEl.dataset.layout = state.layout;
+  boardEl.className = 'board ' + m.cls;
+  boardEl.style.setProperty('--ch', state.cardSize + 'px');
+  boardEl.style.width = g.width + 'px';
+  $('#eyebrow').textContent = m.eyebrow;
+  rowsEl.style.gridTemplateColumns = g.tracks || '';
+
+  rowsEl.innerHTML = state.slots.map((slot,i)=>{
+    const { place, shared, tied } = p[i];
+    const bracketed = isBracketed(i);
+    const cards = slot.cards.length
+      ? slot.cards.map(src=>`<div class="card-slot"><img src="${src}" alt="${ORDINALS[place-1]} place character card"></div>`).join('')
+      : `<div class="card-slot empty"></div>`;
+    const tag = shared ? 'Shared' : (tied ? 'Tied' : '');
+
+    /* placement inside the layout's grid — computed, so removing a cell re-flows */
+    let extra = '';
+    if(state.layout === 'podium'){
+      extra = `grid-column:${g.pos[i].col}; grid-row:${g.pos[i].row};`;
+    }else if(state.layout === 'throne'){
+      extra = i === 0 ? `grid-row:1 / span ${Math.max(1, g.N - 1)};` : `grid-row:${i};`;
+    }else if(state.layout === 'ladder'){
+      extra = `margin-left:${i * 34}px;`;
+    }
+
+    return `
+    <div class="row slot-${i+1} ${metalClass(place)} ${bracketed ? 'bracketed' : ''}"
+         style="--rc:${Math.round(g.rc[i])}px; --n:${g.across[i]}; ${extra}">
+      <div class="sigil">
+        <div class="mark"><span>${roman(place)}</span></div>
+        <div class="place">${ORDINALS[place-1]}${tag ? `<em>${tag}</em>` : ''}</div>
+      </div>
+      ${bracketed ? '<div class="bracket"></div>' : ''}
+      <div class="cards">${cards}</div>
+      <div class="stats">
+        <div class="label">${m.label}</div>
+        <div class="value">${slot.values[state.metric] ? escapeHtml(slot.values[state.metric]) : '—'}</div>
+        <div class="sep"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  $('#updated-out').textContent = state.updated || '—';
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function renderAll(){ renderBoard(); buildEditor(); reportGeometry(); }
+
+function reportGeometry(){
+  const w = boardEl.offsetWidth  * EXPORT_SCALE;
+  const h = boardEl.offsetHeight * EXPORT_SCALE;
+  const biggest = Math.max(...RC[state.layout]) * state.cardSize * RATIO * EXPORT_SCALE;
+  $('#size-note').textContent =
+    `Export ${w} × ${h} px · largest card ${Math.round(biggest)} px wide (${Math.round(biggest/810*100)}% of the original).`;
+}
+
+/* ============================================================ CONTROLS */
+$('#sel-layout').addEventListener('change', e=>{
+  state.layout = e.target.value; save(); renderAll(); fitStage();
+  setStatus(LAYOUTS.find(l=>l.id===state.layout).name + ' layout active.');
+});
+$('#sel-metric').addEventListener('change', e=>{
+  state.metric = e.target.value; save(); renderAll();
+  setStatus('Now showing ' + metricOf(state.metric).label + '.');
+});
+$('#size-seg').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-size]'); if(!b) return;
+  state.cardSize = +b.dataset.size; save(); renderAll(); fitStage();
+});
+$('#shared-seg').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-shared]'); if(!b) return;
+  state.sharedStyle = b.dataset.shared; save(); renderAll(); fitStage();
+});
+$('#tie-seg').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-tie]'); if(!b) return;
+  state.tieMode = b.dataset.tie; save(); renderAll();
+  setStatus(state.tieMode === 'dense' ? 'Dense numbering: 1, 2, 2, 3, 4.' : 'Tournament numbering: 1, 2, 2, 4, 5.');
+});
+$('#btn-layout').addEventListener('click', ()=>{
+  const i = LAYOUTS.findIndex(l=>l.id===state.layout);
+  state.layout = LAYOUTS[(i+1) % LAYOUTS.length].id;
+  save(); renderAll(); fitStage();
+  setStatus(LAYOUTS.find(l=>l.id===state.layout).name + ' layout active.');
+});
+$('#btn-reset').addEventListener('click', ()=>{
+  if(!confirm('Clear all five placements, including every stat value?')) return;
+  state.slots = Array.from({length:5}, blankSlot);
+  save(); renderAll(); fitStage(); setStatus('All placements cleared.');
+});
+$('#updated').addEventListener('input', e=>{
+  state.updated = e.target.value; save();
+  $('#updated-out').textContent = state.updated || '—';
+});
+function setStatus(msg){ $('#status').textContent = msg; }
+
+/* ============================================================ SLOT ACTIONS */
+slotsEl.addEventListener('click', e=>{
+  const el = e.target.closest('[data-act]'); if(!el) return;
+  const i = +el.closest('.slot').dataset.i;
+  const act = el.dataset.act;
+  const c = el.dataset.c !== undefined ? +el.dataset.c : null;
+
+  if(act === 'add')     pickImage(i, null);
+  if(act === 'replace') pickImage(i, c);
+  if(act === 'remove'){
+    e.stopPropagation();
+    state.slots[i].cards.splice(c,1);
+    renderAll(); fitStage(); setStatus('Card removed.');
+  }
+  if(act === 'up'   && i > 0) swap(i, i-1);
+  if(act === 'down' && i < state.slots.length-1) swap(i, i+1);
+  if(act === 'clear'){
+    state.slots[i] = blankSlot();
+    save(); renderAll(); fitStage(); setStatus('Cell cleared.');
+  }
+  if(act === 'removeSlot' && state.slots.length > MIN_SLOTS){
+    state.slots.splice(i,1);
+    save(); renderAll(); fitStage();
+    setStatus(`Cell removed — ${state.slots.length} left.`);
+  }
+});
+
+$('#btn-add-slot').addEventListener('click', ()=>{
+  if(state.slots.length >= MAX_SLOTS) return;
+  state.slots.push(blankSlot());
+  save(); renderAll(); fitStage();
+  setStatus(`Cell added — ${state.slots.length} total.`);
+});
+
+slotsEl.addEventListener('input', e=>{
+  if(e.target.dataset.act !== 'value') return;
+  const i = +e.target.closest('.slot').dataset.i;
+  state.slots[i].values[state.metric] = e.target.value.trim();
+  save();
+  renderBoard();            // values drive the numbering, so the board re-reckons
+  syncPlacementLabels();    // heads only → the caret stays put
+});
+
+function swap(a,b){
+  [state.slots[a], state.slots[b]] = [state.slots[b], state.slots[a]];
+  save(); renderAll(); fitStage(); setStatus('Placement moved.');
+}
+
+const filePicker = document.createElement('input');
+filePicker.type = 'file'; filePicker.accept = 'image/*';
+function pickImage(slotIndex, cardIndex){
+  filePicker.value = '';
+  filePicker.onchange = () => {
+    const file = filePicker.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const cards = state.slots[slotIndex].cards;
+      if(cardIndex === null){ if(cards.length < MAX_CARDS) cards.push(reader.result); }
+      else cards[cardIndex] = reader.result;
+      renderAll(); fitStage();
+      setStatus(cards.length > 1 ? `Placement now shared by ${cards.length} champions.` : 'Card loaded.');
+    };
+    reader.onerror = () => setStatus('That file could not be read. Try a PNG or JPG.');
+    reader.readAsDataURL(file);
+  };
+  filePicker.click();
+}
+
+/* ============================================================ EXPORT */
+$('#btn-export').addEventListener('click', async ()=>{
+  if(typeof html2canvas === 'undefined'){
+    setStatus('Export needs the html2canvas library, which loads from the internet. Reconnect and reload.');
+    return;
+  }
+  const btn = $('#btn-export');
+  btn.disabled = true; btn.textContent = 'Exporting…';
+
+  const scaler = $('#scaler');
+  const prev = scaler.style.transform;
+  scaler.style.transform = 'none';
+  const w = boardEl.offsetWidth, h = boardEl.offsetHeight;
+
+  try{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const canvas = await html2canvas(boardEl, {
+      scale:EXPORT_SCALE, width:w, height:h,
+      backgroundColor:'#0B0A0C', useCORS:true, logging:false, imageTimeout:0
+    });
+    const link = document.createElement('a');
+    link.download = `champion-rankings-${state.layout}-${state.metric}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    setStatus(`Exported at ${canvas.width} × ${canvas.height}.`);
+  }catch(err){
+    console.error(err);
+    setStatus('Export failed. Check the console for details.');
+  }finally{
+    scaler.style.transform = prev;
+    btn.disabled = false; btn.textContent = 'Export PNG';
+  }
+});
+
+/* ============================================================ STAGE FIT */
+function fitStage(){
+  const stage = document.querySelector('.stage');
+  const w = boardEl.offsetWidth || 900, h = boardEl.offsetHeight || 1600;
+  const scale = Math.min(1, (stage.clientWidth - 20) / w, (window.innerHeight - 130) / h);
+  const s = $('#scaler');
+  s.style.transform = `scale(${scale})`;
+  s.style.height = (h * scale) + 'px';
+}
+window.addEventListener('resize', fitStage);
+
+/* ---------- Boot ---------- */
+load();
+buildControls();
+renderAll();
+fitStage();
+</script>
+</body>
+</html>
